@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Jobs\JobProdutoEditado;
+use App\Mail\ProdutoEditado;
+use App\Mail\ProdutoCadastrado;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Mail;
 //use App\Jobs\SendProductNotification; // Adicione a importação da Job
 
 class ProductController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listando os produtos.
      */
     public function index(): JsonResponse
     {
@@ -27,7 +31,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Criando produtos.
      */
     public function store(Request $request): JsonResponse
     {
@@ -66,8 +70,11 @@ class ProductController extends Controller
         try {
             $product = Product::create($productData);
 
-            // Enfileirar a Job para enviar notificação
-            //SendProductNotification::dispatch($product, 'cadastrado');
+            // Obtem o usuário autenticado
+            $user = Auth::user();
+            // Enviando E-mail de notificação.
+            Mail::to($user->email)->send(new ProdutoCadastrado($user, $request));
+
 
             return response()->json(['status' => 'success', 'message' => 'Produto criado com sucesso!', 'product' => $product], 201);
         } catch (\Exception $e) {
@@ -76,7 +83,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Selecionando produto
      */
     public function show(Product $product): JsonResponse
     {
@@ -96,6 +103,9 @@ class ProductController extends Controller
         //
     }
 
+    /**
+     * Atualizando status do produto.
+     */
     public function updateStatus(Request $request, $id): JsonResponse
     {
         // Valida o status recebido
@@ -118,7 +128,7 @@ class ProductController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Status do produto atualizado com sucesso!', 'product' => $product], 200);
     }
     /**
-     * Update the specified resource in storage.
+     * Atualizando produto.
      */
     public function update(Request $request, $id): JsonResponse
     {
@@ -163,8 +173,14 @@ class ProductController extends Controller
         // Atualiza os atributos do produto
         $product->update($productData);
 
-        // Enfileirar a Job para enviar notificação
-        //SendProductNotification::dispatch($product, 'atualizado');
+        // Obtem o usuário autenticado
+        $user = Auth::user();
+
+        // Enviando E-mail de notificação.
+        Mail::to($user->email)->send(new ProdutoEditado($user, $request));
+
+        //Agenda envio de E-Mail
+        //JobProdutoEditado::dispatch($user, $request)->onQueue('default');
 
         // Retorna a resposta com o produto atualizado
         return response()->json(['status' => 'success', 'message' => 'Produto atualizado com sucesso!', 'product' => $product], 200);
