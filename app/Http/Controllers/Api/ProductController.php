@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\ProductRequest;
 use App\Jobs\JobProdutoEditado;
 use App\Mail\ProdutoEditado;
 use App\Mail\ProdutoCadastrado;
@@ -33,21 +34,13 @@ class ProductController extends Controller
     /**
      * Criando produtos.
      */
-    public function store(Request $request): JsonResponse
+    public function store(ProductRequest $request): JsonResponse
     {
         // Adicione o log aqui
         \Log::info('User ID:', ['user_id' => Auth::id()]);
 
-        // Valida os dados recebidos na requisição
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric|min:0',
-            'description' => 'nullable|string',
-            'status' => 'required|string|in:active,inactive,pending',
-        ]);
-
         // Coleta os dados do produto
-        $productData = $request->only(['name', 'description', 'price', 'status']);
+        $productData = $request->validated();
         $productData['user_id'] = Auth::id(); // Adiciona o ID do usuário autenticado
 
         // Verifica se uma imagem foi enviada e trata a imagem base64
@@ -75,8 +68,9 @@ class ProductController extends Controller
             // Enviando E-mail de notificação.
             Mail::to($user->email)->send(new ProdutoCadastrado($user, $request));
 
-
             return response()->json(['status' => 'success', 'message' => 'Produto criado com sucesso!', 'product' => $product], 201);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['status' => 'error', 'message' => 'Erro de banco de dados: ' . $e->getMessage()], 500);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => 'Erro ao criar produto: ' . $e->getMessage()], 500);
         }

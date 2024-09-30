@@ -58,10 +58,13 @@ class Usercontroller extends Controller
      */
     public function store(UserRequest $request): JsonResponse
     {
+
+
         // Iniciar a transação
         DB::beginTransaction();
 
         try {
+
             // Criar o usuário com a senha criptografada
             $user = User::create([
                 'name' => $request->name,
